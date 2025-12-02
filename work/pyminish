@@ -1,0 +1,46 @@
+#!/usr/bin/env python3
+
+# print("hello")
+
+### 内部コマンド実装 ###
+def builtin_echo(args):
+    print(" ".join(args))
+
+
+def builtin_exit(args):
+    exit()
+
+
+BUILTIN_COMMAND_FUNC_MAPPONG = {
+    "echo": builtin_echo,  # 上部で定義した関数の紐付け
+    "exit": builtin_exit,
+}
+
+### 内部コマンド実装 END ###
+
+
+def main():
+    while True:
+        # 入力値
+        line = input("> ")
+        tokens = line.split()
+
+        # コマンドが空の場合は無視
+        if len(tokens) == 0:
+            continue
+
+        command = tokens[0]  # コマンド部分
+        args = tokens[1:]  # 引数部分
+
+        # TODO コマンドを実行する
+        if command in BUILTIN_COMMAND_FUNC_MAPPONG:
+            # コマンドに対応する関数を取得して実行
+            func = BUILTIN_COMMAND_FUNC_MAPPONG[command]
+            func(args)
+        else:
+            # TODO 外部コマンド実行
+            pass
+
+
+if __name__ == "__main__":
+    main()
