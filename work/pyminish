@@ -1,14 +1,31 @@
 #!/usr/bin/env python3
 
+import os
+import sys
+
 # print("hello")
 
 ### 内部コマンド実装 ###
+
+
 def builtin_echo(args):
     print(" ".join(args))
 
 
 def builtin_exit(args):
     exit()
+
+### コマンドを探す関数 ###
+
+
+def find_command(command):
+    for path_dir in os.environ["PATH"].split(":"):
+        command_path = os.path.join(path_dir, command)
+        # コマンドが存在して、かつディレクトリでない場合
+        if os.path.exists(command_path) and not os.path.isdir(command_path):
+            # コマンドのパスを返す
+            return command_path
+    return None
 
 
 BUILTIN_COMMAND_FUNC_MAPPONG = {
@@ -20,6 +37,7 @@ BUILTIN_COMMAND_FUNC_MAPPONG = {
 
 
 def main():
+
     while True:
         # 入力値
         line = input("> ")
@@ -38,8 +56,24 @@ def main():
             func = BUILTIN_COMMAND_FUNC_MAPPONG[command]
             func(args)
         else:
-            # TODO 外部コマンド実行
-            pass
+            # 外部コマンドの処理
+            command_path = find_command(command)
+
+            # コマンドが見つからなかった場合
+            if command_path is None:
+                print(f"{command}: command not found", file=sys.stderr)
+                continue
+
+            ### プロセスの実行 ###
+            pid = os.fork()  # プロセスの複製
+
+            if pid == 0:
+                # 子プロセス 処理
+                command_basename = os.path.basename(command_path)
+                os.execv(command_path, [command_basename] + args, os.environ)
+            else:
+                # 親プロセス 処理
+                os.waitpid(pid, 0)  # 子プロセスの終了を待機
 
 
 if __name__ == "__main__":
