@@ -2,6 +2,7 @@
 
 import os
 import sys
+import signal
 
 # print("hello")
 
@@ -36,44 +37,80 @@ BUILTIN_COMMAND_FUNC_MAPPONG = {
 ### 内部コマンド実装 END ###
 
 
-def main():
+### SIGINT ハンドラー実装 ###
+def sigint_handler():
+    pass
 
-    while True:
-        # 入力値
-        line = input("> ")
-        tokens = line.split()
+### SIGINT ハンドラー実装 END ###
 
-        # コマンドが空の場合は無視
-        if len(tokens) == 0:
-            continue
+### コマンド処理 ###
+def interpret_line(line):
 
-        command = tokens[0]  # コマンド部分
-        args = tokens[1:]  # 引数部分
+    tokens = line.split()
+      
+    # コマンドが空の場合は無視
+    if len(tokens) == 0:
+        return
 
-        # TODO コマンドを実行する
-        if command in BUILTIN_COMMAND_FUNC_MAPPONG:
-            # コマンドに対応する関数を取得して実行
-            func = BUILTIN_COMMAND_FUNC_MAPPONG[command]
-            func(args)
+    command = tokens[0]  # コマンド部分
+    args = tokens[1:]  # 引数部分
+
+    # TODO コマンドを実行する
+    if command in BUILTIN_COMMAND_FUNC_MAPPONG:
+        # コマンドに対応する関数を取得して実行
+        func = BUILTIN_COMMAND_FUNC_MAPPONG[command]
+        func(args)
+    else:
+        # 外部コマンドの処理
+        command_path = find_command(command)
+
+        # コマンドが見つからなかった場合
+        if command_path is None:
+            print(f"{command}: command not found", file=sys.stderr)
+            return
+
+        ### プロセスの実行 ###
+        pid = os.fork()  # プロセスの複製
+
+        if pid == 0:
+            # 子プロセス 処理
+            command_basename = os.path.basename(command_path)
+            os.execv(command_path, [command_basename] + args)
+          #  os.execv(command_path, [command_basename] + args, os.environ)
         else:
-            # 外部コマンドの処理
-            command_path = find_command(command)
+            # 親プロセス 処理
+            os.waitpid(pid, 0)  # 子プロセスの終了を待機
 
-            # コマンドが見つからなかった場合
-            if command_path is None:
-                print(f"{command}: command not found", file=sys.stderr)
-                continue
+### コマンド処理　END ###
 
-            ### プロセスの実行 ###
-            pid = os.fork()  # プロセスの複製
 
-            if pid == 0:
-                # 子プロセス 処理
-                command_basename = os.path.basename(command_path)
-                os.execv(command_path, [command_basename] + args, os.environ)
-            else:
-                # 親プロセス 処理
-                os.waitpid(pid, 0)  # 子プロセスの終了を待機
+def main():
+    
+    ### シェルスクリプト、実行 ###
+    if len(sys.argv) >= 2:
+        file_name = sys.argv[1]
+    else:
+        file_name = None
+    
+    if file_name is None:
+        
+         # Ctrl + c の SIGINTの挙動を変更
+        signal.signal(signal.SIGINT, sigint_handler)
+        
+        # 通常シェル操作の場合
+        while True:
+            # 入力値
+            line = input("> ")
+          
+            ### コマンド処理 interpret_line ###
+            interpret_line(line)
+            
+    else:
+        # シェルスクリプトの場合
+        with open(file_name) as f:
+            for line in f:
+                interpret_line(line)
+   
 
 
 if __name__ == "__main__":
